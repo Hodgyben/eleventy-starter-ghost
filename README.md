@@ -85,13 +85,21 @@ your host rather than committing them.
 
 ## What it shows
 
-Half-hourly electricity and gas over the last 7, 30, or 90 days: daily use and
-cost, the average shape of a day split weekday/weekend, use by day of the week,
+Half-hourly electricity and gas over the last 7, 30, or 90 days: a headline cost
+figure, stat tiles with sparklines, daily use and cost, the **blended electricity
+rate**, the average shape of a day split weekday/weekend, use by day of the week,
 and a half-hour heatmap. Every chart has a table view behind a toggle.
 
 Each reading is costed at the unit rate in force at that instant, so half-hourly
 tariffs such as Agile are priced correctly rather than averaged; standing charges
 are added per day.
+
+**The blended rate** ("What a kWh actually cost") plots two lines on one p/kWh
+axis: the unit rate paid, and the same rate once the daily standing charge is
+spread across the kilowatt hours used. The shaded gap between them is the
+standing charge, so it visibly widens on light-usage days — the same fixed charge
+carried by fewer units. On a flat tariff the unit line is flat and only the
+all-in line moves; on Agile or Go both move.
 
 ## Notes
 

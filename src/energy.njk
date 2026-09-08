@@ -55,6 +55,8 @@ eleventyExcludeFromCollections: true
         </div>
     </div>
 
+    <section class="energy-hero" data-hero></section>
+
     <div class="energy-tiles" data-tiles></div>
 
     <div class="energy-grid">
@@ -81,6 +83,25 @@ eleventyExcludeFromCollections: true
             <ul class="energy-legend">
                 <li><span class="energy-swatch is-elec"></span> Daily cost</li>
                 <li><span class="energy-swatch is-gas"></span> 7-day average</li>
+            </ul>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card is-wide" data-card="blended-rate">
+            <div class="energy-card-head">
+                <h2>What a kWh actually cost</h2>
+                <span class="energy-card-caption" data-caption></span>
+            </div>
+            <p class="energy-card-note">
+                The unit rate you paid, and the same rate once the daily standing charge is spread
+                across the electricity used. The shaded gap is the standing charge — it widens on
+                light-usage days, because the same fixed charge is carried by fewer kilowatt hours.
+            </p>
+            <ul class="energy-legend">
+                <li><span class="energy-swatch is-elec"></span> All-in rate</li>
+                <li><span class="energy-swatch is-gas"></span> Unit rate</li>
             </ul>
             <div class="energy-plot" data-plot></div>
             <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
@@ -178,12 +199,18 @@ eleventyExcludeFromCollections: true
                     <dt>Time zone</dt>
                     <dd>{{ energy.meta.timezone }}</dd>
                 </div>
+                <div>
+                    <dt>Blended rate</dt>
+                    <dd>(units + standing charge) ÷ kWh</dd>
+                </div>
             </dl>
             <p class="energy-card-note" style="margin-top:1.6rem;margin-bottom:0">
                 Costs are estimates. Each half-hourly reading is priced at the unit rate in force at that
                 moment (so half-hourly tariffs such as Agile are handled properly), standing charges are
-                added per day, and VAT-inclusive rates are used throughout. Partial days at either end of
-                the window are dropped. Your real bill may differ.
+                added per day, and VAT-inclusive rates are used throughout. The blended rate divides
+                what electricity cost by the kilowatt hours it bought, so it falls as you use more and
+                rises on a light-usage day. Partial days at either end of the window are dropped.
+                Your real bill may differ.
             </p>
         </section>
 

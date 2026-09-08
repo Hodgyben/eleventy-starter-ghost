@@ -31,10 +31,14 @@
   --heat-5: #256abf;
   --heat-6: #104281;
 
+  --card-radius: 1.4rem;
+  --card-ring: 0 0 0 1px var(--hairline);
+  --card-lift: 0 1px 2px rgba(11, 11, 11, 0.04), 0 12px 28px -18px rgba(11, 11, 11, 0.28);
+
   color-scheme: light;
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 0 4rem;
+  padding: 0 0 5rem;
   color: var(--text-primary);
   font-size: 1.5rem;
   line-height: 1.5;
@@ -67,6 +71,9 @@
     --heat-5: #3987e5;
     --heat-6: #6da7ec;
 
+    --card-ring: 0 0 0 1px var(--hairline);
+    --card-lift: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 32px -20px rgba(0, 0, 0, 0.9);
+
     color-scheme: dark;
   }
 }
@@ -79,6 +86,10 @@
 .energy h1,
 .energy h2 {
   color: var(--text-primary);
+}
+
+body {
+  background: #f7f7f5;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -107,9 +118,10 @@
 
 .energy-header h1 {
   margin: 0;
-  font-size: 3.2rem;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  font-size: 3.6rem;
+  font-weight: var(--font-bold);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
 }
 
 .energy-subtitle {
@@ -127,10 +139,10 @@
 .energy-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 1rem;
-  border: 1px solid var(--hairline);
+  gap: 0.6rem;
+  padding: 0.5rem 1.2rem;
   border-radius: 999px;
+  box-shadow: var(--card-ring);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: 1.3rem;
@@ -154,11 +166,11 @@
 .energy-notice {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1.2rem 1.6rem;
-  border: 1px solid var(--hairline);
+  margin-bottom: 2.4rem;
+  padding: 1.4rem 1.8rem;
   border-left: 3px solid #fab219;
-  border-radius: var(--radius);
+  border-radius: 0.4rem var(--card-radius) var(--card-radius) 0.4rem;
+  box-shadow: var(--card-ring);
   background: var(--surface-1);
   color: var(--text-secondary);
   font-size: 1.4rem;
@@ -193,14 +205,14 @@
 
 .energy-segmented {
   display: inline-flex;
-  padding: 0.3rem;
-  border: 1px solid var(--hairline);
+  padding: 0.4rem;
   border-radius: 999px;
+  box-shadow: var(--card-ring);
   background: var(--surface-1);
 }
 
 .energy-segmented button {
-  padding: 0.5rem 1.4rem;
+  padding: 0.6rem 1.6rem;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -208,6 +220,7 @@
   font: inherit;
   font-size: 1.4rem;
   cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .energy-segmented button:hover {
@@ -224,27 +237,96 @@
   outline-offset: 2px;
 }
 
+/* Headline figure
+/* ---------------------------------------------------------- */
+
+.energy-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 3rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.6rem;
+  padding: 2.6rem 2.8rem;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-ring), var(--card-lift);
+  background: var(--surface-1);
+}
+
+.energy-hero-main {
+  min-width: 0;
+}
+
+.energy-hero-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.energy-hero-value {
+  margin: 0.8rem 0 0;
+  font-size: 5.6rem;
+  font-weight: var(--font-bold);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.energy-hero-meta {
+  margin: 1rem 0 0;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+}
+
+.energy-hero-aside {
+  flex: 1 1 220px;
+  max-width: 380px;
+}
+
+.energy-hero-sparklabel {
+  display: block;
+  margin-top: 0.6rem;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  text-align: right;
+}
+
+.energy-hero .energy-spark {
+  height: 6.4rem;
+}
+
+.energy-delta {
+  font-weight: var(--font-bold);
+}
+
+.energy-delta.is-up { color: var(--critical); }
+.energy-delta.is-down { color: var(--good); }
+
 /* Stat tiles
 /* ---------------------------------------------------------- */
 
 .energy-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 1.6rem;
-  margin-bottom: 2.4rem;
+  margin-bottom: 3.2rem;
 }
 
 .energy-tile {
-  padding: 1.8rem 2rem;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 2.2rem 0;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-ring), var(--card-lift);
   background: var(--surface-1);
 }
 
 .energy-tile-label {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.7rem;
   color: var(--text-secondary);
   font-size: 1.3rem;
 }
@@ -260,31 +342,57 @@
 .energy-swatch.is-gas { background: var(--gas); }
 
 .energy-tile-value {
-  margin: 0.6rem 0 0;
-  font-size: 3.4rem;
+  margin: 0.8rem 0 0;
+  font-size: 3.6rem;
   font-weight: var(--font-bold);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
 }
 
 .energy-tile-value small {
   font-size: 1.6rem;
   font-weight: var(--font-normal);
+  letter-spacing: 0;
   color: var(--text-secondary);
 }
 
+.energy-tile-detail,
 .energy-tile-delta {
-  margin: 0.6rem 0 0;
-  font-size: 1.3rem;
+  margin: 0.7rem 0 0;
   color: var(--text-secondary);
+  font-size: 1.3rem;
 }
 
-.energy-tile-delta b {
-  font-weight: var(--font-bold);
+/* A full-bleed band along the bottom of every tile, so the four read as a
+   set whether they carry a sparkline or a share meter. */
+.energy-tile-visual {
+  display: flex;
+  align-items: flex-end;
+  height: 5.2rem;
+  margin: auto -2.2rem 0;
 }
 
-.energy-tile-delta.is-up b { color: var(--critical); }
-.energy-tile-delta.is-down b { color: var(--good); }
+.energy-spark {
+  display: block;
+  width: 100%;
+  height: 5.2rem;
+}
+
+.energy-meter {
+  display: block;
+  width: 100%;
+  height: 0.6rem;
+  margin: 0 2.2rem 2rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.energy-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
 
 /* Cards & charts
 /* ---------------------------------------------------------- */
@@ -298,9 +406,9 @@
 .energy-card {
   display: flex;
   flex-direction: column;
-  padding: 2rem;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
+  padding: 2.4rem 2.6rem;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-ring), var(--card-lift);
   background: var(--surface-1);
   min-width: 0;
 }
@@ -318,8 +426,10 @@
 
 .energy-card h2 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 2rem;
+  font-weight: var(--font-bold);
   line-height: 1.3;
+  letter-spacing: -0.015em;
 }
 
 .energy-card-caption {
@@ -328,16 +438,25 @@
 }
 
 .energy-card-note {
-  margin: 0 0 1.6rem;
+  max-width: 68ch;
+  margin: 0.4rem 0 1.8rem;
   color: var(--text-secondary);
-  font-size: 1.3rem;
+  font-size: 1.35rem;
+  line-height: 1.6;
+}
+
+.energy-empty {
+  margin: 3rem 0;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  text-align: center;
 }
 
 .energy-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.2rem;
-  margin: 0 0 1rem;
+  gap: 1.6rem;
+  margin: 0 0 1.2rem;
   padding: 0;
   list-style: none;
   color: var(--text-secondary);
@@ -382,19 +501,28 @@
 
 .energy-toggle {
   align-self: flex-start;
-  margin-top: 1.4rem;
-  padding: 0;
+  margin-top: 1.8rem;
+  padding: 0.5rem 1.2rem;
   border: 0;
-  background: none;
+  border-radius: 999px;
+  box-shadow: var(--card-ring);
+  background: var(--surface-1);
   color: var(--text-secondary);
   font: inherit;
   font-size: 1.3rem;
-  text-decoration: underline;
-  text-underline-offset: 0.3rem;
   cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.energy-toggle:hover { color: var(--text-primary); }
+.energy-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.energy-toggle:focus-visible {
+  outline: 2px solid var(--elec);
+  outline-offset: 2px;
+}
 
 .energy-table-wrap {
   max-height: 320px;
@@ -446,7 +574,7 @@
 }
 
 .energy-scale-step {
-  width: 2.2rem;
+  width: 2.4rem;
   height: 1rem;
   border-radius: 0.2rem;
 }
@@ -495,8 +623,8 @@
 
 .energy-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.6rem 2.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1.8rem 2.4rem;
   margin: 0;
 }
 
@@ -520,7 +648,14 @@
 }
 
 @media (max-width: 700px) {
-  .energy-header h1 { font-size: 2.6rem; }
+  .energy-header h1 { font-size: 2.8rem; }
   .energy-grid { grid-template-columns: 1fr; }
-  .energy-card { padding: 1.6rem; }
+  .energy-card { padding: 1.8rem; }
+  .energy-hero { padding: 2rem; }
+  .energy-hero-value { font-size: 4.4rem; }
+  .energy-hero-aside { max-width: none; }
+  .energy-hero-sparklabel { text-align: left; }
+  .energy-tile { padding: 1.8rem 2rem 0; }
+  .energy-tile-visual { margin: auto -2rem 0; }
+  .energy-meter { margin: 0 2rem 2rem; }
 }

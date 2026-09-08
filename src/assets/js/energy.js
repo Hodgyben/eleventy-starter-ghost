@@ -61,6 +61,17 @@
     return (new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2])).getUTCDay() + 6) % 7;
   };
 
+  /* -- day maths ---------------------------------------------------------- */
+
+  var dayStanding = function (day) { return day.esc + day.gsc; };
+  var dayCost = function (day) { return day.ec + day.gc + dayStanding(day); };
+
+  /** Electricity p/kWh actually paid, with and without the standing charge. */
+  var blendedUnit = function (day) { return day.ek > 0 ? (day.ec / day.ek) * 100 : null; };
+  var blendedAllIn = function (day) {
+    return day.ek > 0 ? ((day.ec + day.esc) / day.ek) * 100 : null;
+  };
+
   var cssVar = function (name) {
     return getComputedStyle(root).getPropertyValue(name).trim();
   };
@@ -91,20 +102,41 @@
     );
   }
 
-  /** Rounded "nice" tick values for a 0..max axis. */
-  function ticks(max, count) {
-    if (!(max > 0)) return [0, 1];
-    var raw = max / count;
+  /** The nearest 1/2/2.5/5/10 × 10^n at or above `raw`. */
+  function niceStep(raw) {
     var magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-    var step = [1, 2, 2.5, 5, 10].reduce(function (best, multiple) {
+    return [1, 2, 2.5, 5, 10].reduce(function (best, multiple) {
       var candidate = multiple * magnitude;
       return candidate >= raw && (best === null || candidate < best) ? candidate : best;
     }, null) || magnitude * 10;
+  }
+
+  /** Rounded "nice" tick values for a 0..max axis. */
+  function ticks(max, count) {
+    if (!(max > 0)) return [0, 1];
+    var step = niceStep(max / count);
 
     // Keep stepping until the axis top covers `max`, so the tallest mark
     // always fits inside the plot.
     var values = [];
     for (var value = 0; ; value += step) {
+      values.push(Math.round(value * 1e6) / 1e6);
+      if (value >= max - step * 1e-6) break;
+    }
+    return values;
+  }
+
+  /**
+   * Ticks for an axis that need not start at zero — right for a rate, which
+   * is never compared by area and would be unreadable pinned to 0.
+   */
+  function ticksBetween(min, max, count) {
+    if (!(max > min)) return [min, min + 1];
+    var step = niceStep((max - min) / count);
+    var lo = Math.floor(min / step) * step;
+    var values = [];
+
+    for (var value = lo; ; value += step) {
       values.push(Math.round(value * 1e6) / 1e6);
       if (value >= max - step * 1e-6) break;
     }
@@ -182,32 +214,39 @@
   }
 
   /** Horizontal hairline grid plus right-aligned tick labels. */
-  function yAxis(f, scaleMax, format) {
-    var values = ticks(scaleMax, 4);
-    var top = values[values.length - 1];
+  function drawAxis(f, values, format) {
+    var lo = values[0];
+    var hi = values[values.length - 1];
+    var span = hi - lo || 1;
 
     values.forEach(function (value) {
-      var y = f.top + f.plotH - (value / top) * f.plotH;
-      f.svg.appendChild(
-        el("line", {
-          x1: f.left,
-          x2: f.left + f.plotW,
-          y1: y,
-          y2: y,
-          class: value === 0 ? "energy-baseline" : "energy-grid-line"
-        })
-      );
-      f.svg.appendChild(
-        el("text", {
-          x: f.left - 8,
-          y: y + 4,
-          "text-anchor": "end",
-          class: "energy-tick"
-        }, format(value))
-      );
+      var y = f.top + f.plotH - ((value - lo) / span) * f.plotH;
+      f.svg.appendChild(el("line", {
+        x1: f.left,
+        x2: f.left + f.plotW,
+        y1: y,
+        y2: y,
+        class: value === lo ? "energy-baseline" : "energy-grid-line"
+      }));
+      f.svg.appendChild(el("text", {
+        x: f.left - 8,
+        y: y + 4,
+        "text-anchor": "end",
+        class: "energy-tick"
+      }, format(value)));
     });
 
-    return top;
+    return { lo: lo, hi: hi, span: span };
+  }
+
+  /** Zero-based axis; returns the axis top, so marks scale as value / top. */
+  function yAxis(f, scaleMax, format) {
+    return drawAxis(f, ticks(scaleMax, 4), format).hi;
+  }
+
+  /** Axis over an arbitrary band; returns { lo, hi, span }. */
+  function yAxisRange(f, min, max, format) {
+    return drawAxis(f, ticksBetween(min, max, 4), format);
   }
 
   /** Date ticks along the x axis, thinned to fit the plot width. */
@@ -242,18 +281,26 @@
   }
 
   function totals(rows) {
-    return rows.reduce(
+    var sum = rows.reduce(
       function (acc, day) {
         acc.ek += day.ek;
         acc.gk += day.gk;
         acc.ec += day.ec;
         acc.gc += day.gc;
-        acc.sc += day.sc;
-        acc.cost += day.ec + day.gc + day.sc;
+        acc.esc += day.esc;
+        acc.gsc += day.gsc;
         return acc;
       },
-      { ek: 0, gk: 0, ec: 0, gc: 0, sc: 0, cost: 0 }
+      { ek: 0, gk: 0, ec: 0, gc: 0, esc: 0, gsc: 0 }
     );
+
+    sum.sc = sum.esc + sum.gsc;
+    sum.cost = sum.ec + sum.gc + sum.sc;
+    // Blended electricity price over the whole range, all-in and unit-only.
+    sum.blended = sum.ek > 0 ? ((sum.ec + sum.esc) / sum.ek) * 100 : 0;
+    sum.blendedUnit = sum.ek > 0 ? (sum.ec / sum.ek) * 100 : 0;
+
+    return sum;
   }
 
   /* -- table view --------------------------------------------------------- */
@@ -304,87 +351,156 @@
     }
   }
 
-  /* -- stat tiles --------------------------------------------------------- */
+  /* -- sparklines & meters ------------------------------------------------ */
 
-  function renderTiles(rows) {
+  /**
+   * A tiny line+area chart for a stat tile. The box is stretched to fit its
+   * container, so the stroke is pinned with vector-effect to stay hairline.
+   */
+  function sparkline(values, color) {
+    var W = 160;
+    var H = 40;
+    var pad = 4;
+
+    var clean = [];
+    var carried = 0;
+    values.forEach(function (value) {
+      if (value === null || !isFinite(value)) value = carried;
+      carried = value;
+      clean.push(value);
+    });
+    if (clean.length < 2) return "";
+
+    var min = Math.min.apply(null, clean);
+    var max = Math.max.apply(null, clean);
+    var span = max - min || 1;
+
+    var x = function (index) { return (index / (clean.length - 1)) * W; };
+    var y = function (value) { return H - pad - ((value - min) / span) * (H - 2 * pad); };
+
+    var line = clean
+      .map(function (value, index) {
+        return (index ? "L" : "M") + x(index).toFixed(1) + "," + y(value).toFixed(1);
+      })
+      .join("");
+
+    return (
+      '<svg class="energy-spark" viewBox="0 0 ' + W + " " + H + '" ' +
+      'preserveAspectRatio="none" aria-hidden="true" focusable="false">' +
+      '<path d="' + line + "L" + W + "," + H + "L0," + H + 'Z" fill="' + color + '" opacity="0.12"/>' +
+      '<path d="' + line + '" fill="none" stroke="' + color + '" stroke-width="2" ' +
+      'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
+      "</svg>"
+    );
+  }
+
+  /** A single-value share bar — used where a sparkline would just be flat. */
+  function meter(fraction, color) {
+    var percent = Math.max(0, Math.min(100, fraction * 100));
+    return (
+      '<span class="energy-meter" aria-hidden="true">' +
+      '<span class="energy-meter-fill" style="width:' + percent.toFixed(1) + "%;background:" + color + '"></span>' +
+      "</span>"
+    );
+  }
+
+  /* -- headline & stat tiles ---------------------------------------------- */
+
+  function deltaHtml(now, was, days) {
+    if (!was) return "";
+
+    var delta = ((now - was) / was) * 100;
+    var direction = delta >= 0.5 ? "is-up" : delta <= -0.5 ? "is-down" : "";
+    var arrow = delta >= 0.5 ? "\u25b2" : delta <= -0.5 ? "\u25bc" : "\u2192";
+
+    return (
+      '<span class="energy-delta ' + direction + '">' + arrow + " " +
+      Math.abs(delta).toFixed(1) + "%</span> vs previous " + days + " days"
+    );
+  }
+
+  function renderSummary(rows) {
     var current = totals(rows);
-    var previousRows = (function () {
-      var all = DATA.days;
-      var end = all.length - rows.length;
-      return all.slice(Math.max(0, end - rows.length), end);
-    })();
+    var all = DATA.days;
+    var end = all.length - rows.length;
+    var previousRows = all.slice(Math.max(0, end - rows.length), end);
     var previous = previousRows.length ? totals(previousRows) : null;
+
+    var elec = cssVar("--elec");
+    var gas = cssVar("--gas");
+    var accent = cssVar("--accent-3");
+
+    var hero = root.querySelector("[data-hero]");
+    if (hero) {
+      hero.innerHTML =
+        '<div class="energy-hero-main">' +
+        '<span class="energy-hero-label">Estimated cost · last ' + rows.length + " days</span>" +
+        '<p class="energy-hero-value">' + fmtMoney(current.cost) + "</p>" +
+        '<p class="energy-hero-meta">' + fmtMoney(current.cost / rows.length) + " a day" +
+        (previous ? " · " + deltaHtml(current.cost, previous.cost, rows.length) : "") +
+        "</p>" +
+        "</div>" +
+        '<div class="energy-hero-aside">' +
+        sparkline(rows.map(dayCost), elec) +
+        '<span class="energy-hero-sparklabel">Daily cost across the range</span>' +
+        "</div>";
+    }
 
     var tiles = [
       {
-        key: "cost",
-        label: "Estimated cost",
-        value: fmtMoney(current.cost),
-        unit: "",
-        now: current.cost,
-        was: previous && previous.cost,
-        detail: fmtMoney(current.cost / rows.length) + " a day"
-      },
-      {
-        key: "elec",
         label: "Electricity",
         swatch: "is-elec",
         value: current.ek.toFixed(0),
         unit: "kWh",
-        now: current.ek,
-        was: previous && previous.ek,
-        detail: fmtKwh(current.ek / rows.length) + " a day · " + fmtMoney(current.ec)
+        detail: fmtKwh(current.ek / rows.length) + " a day · " + fmtMoney(current.ec) + " of units",
+        delta: deltaHtml(current.ek, previous && previous.ek, rows.length),
+        visual: sparkline(rows.map(function (day) { return day.ek; }), elec)
       },
       {
-        key: "gas",
         label: "Gas",
         swatch: "is-gas",
         value: current.gk.toFixed(0),
         unit: "kWh",
-        now: current.gk,
-        was: previous && previous.gk,
-        detail: fmtKwh(current.gk / rows.length) + " a day · " + fmtMoney(current.gc)
+        detail: fmtKwh(current.gk / rows.length) + " a day · " + fmtMoney(current.gc) + " of units",
+        delta: deltaHtml(current.gk, previous && previous.gk, rows.length),
+        visual: sparkline(rows.map(function (day) { return day.gk; }), gas)
       },
       {
-        key: "standing",
+        label: "Blended electricity rate",
+        value: current.blended.toFixed(1),
+        unit: "p/kWh",
+        detail: fmtPence(current.blendedUnit) + " units + standing charge",
+        delta: deltaHtml(current.blended, previous && previous.blended, rows.length),
+        visual: sparkline(rows.map(blendedAllIn), accent)
+      },
+      {
         label: "Standing charges",
         value: fmtMoney(current.sc),
         unit: "",
-        now: current.sc,
-        was: previous && previous.sc,
-        detail: Math.round((current.sc / current.cost) * 100) + "% of the bill"
+        detail: Math.round((current.sc / current.cost) * 100) + "% of the estimated bill",
+        delta: deltaHtml(current.sc, previous && previous.sc, rows.length),
+        visual: meter(current.sc / current.cost, cssVar("--text-muted"))
       }
     ];
 
     var host = root.querySelector("[data-tiles]");
-    host.innerHTML = "";
-
-    tiles.forEach(function (tile) {
-      var node = document.createElement("div");
-      node.className = "energy-tile";
-
-      var change = "";
-      if (tile.was) {
-        var delta = ((tile.now - tile.was) / tile.was) * 100;
-        var direction = delta >= 0.5 ? "is-up" : delta <= -0.5 ? "is-down" : "";
-        var arrow = delta >= 0.5 ? "▲" : delta <= -0.5 ? "▼" : "→";
-        change =
-          '<p class="energy-tile-delta ' + direction + '"><b>' + arrow + " " +
-          Math.abs(delta).toFixed(1) + "%</b> vs previous " + rows.length + " days</p>";
-      }
-
-      node.innerHTML =
-        '<div class="energy-tile-label">' +
-        (tile.swatch ? '<span class="energy-swatch ' + tile.swatch + '"></span>' : "") +
-        tile.label +
-        "</div>" +
-        '<p class="energy-tile-value">' + tile.value +
-        (tile.unit ? " <small>" + tile.unit + "</small>" : "") + "</p>" +
-        '<p class="energy-tile-delta">' + tile.detail + "</p>" +
-        change;
-
-      host.appendChild(node);
-    });
+    host.innerHTML = tiles
+      .map(function (tile) {
+        return (
+          '<div class="energy-tile">' +
+          '<div class="energy-tile-label">' +
+          (tile.swatch ? '<span class="energy-swatch ' + tile.swatch + '"></span>' : "") +
+          tile.label +
+          "</div>" +
+          '<p class="energy-tile-value">' + tile.value +
+          (tile.unit ? " <small>" + tile.unit + "</small>" : "") + "</p>" +
+          '<p class="energy-tile-detail">' + tile.detail + "</p>" +
+          (tile.delta ? '<p class="energy-tile-delta">' + tile.delta + "</p>" : "") +
+          '<div class="energy-tile-visual">' + tile.visual + "</div>" +
+          "</div>"
+        );
+      })
+      .join("");
   }
 
   /* -- daily energy (stacked kWh) ----------------------------------------- */
@@ -444,7 +560,7 @@
           tooltipRows(fmtDate(day.date), [
             { label: "Electricity", value: fmtKwh(day.ek), color: elec },
             { label: "Gas", value: fmtKwh(day.gk), color: gas },
-            { label: "Cost", value: fmtMoney(day.ec + day.gc + day.sc) }
+            { label: "Cost", value: fmtMoney(dayCost(day)) }
           ]),
           event
         );
@@ -466,7 +582,7 @@
           day.ek.toFixed(1),
           day.gk.toFixed(1),
           (day.ek + day.gk).toFixed(1),
-          fmtMoney(day.ec + day.gc + day.sc)
+          fmtMoney(dayCost(day))
         ];
       })
     );
@@ -486,7 +602,7 @@
       label: "Estimated daily cost"
     });
 
-    var costs = rows.map(function (day) { return day.ec + day.gc + day.sc; });
+    var costs = rows.map(dayCost);
     var max = Math.max.apply(null, costs.concat([0.5]));
     var top = yAxis(f, max, function (value) {
       return "£" + (value === 0 || value >= 1 ? value.toFixed(0) : value.toFixed(1));
@@ -551,7 +667,7 @@
           tooltipRows(fmtDate(day.date), [
             { label: "Electricity", value: fmtMoney(day.ec), color: elec },
             { label: "Gas", value: fmtMoney(day.gc), color: cssVar("--gas") },
-            { label: "Standing charge", value: fmtMoney(day.sc) },
+            { label: "Standing charge", value: fmtMoney(dayStanding(day)) },
             { label: "Total", value: fmtMoney(costs[index]) },
             { label: "7-day average", value: fmtMoney(rolling[index]) }
           ]),
@@ -573,11 +689,197 @@
           fmtDate(day.date, true),
           fmtMoney(day.ec),
           fmtMoney(day.gc),
-          fmtMoney(day.sc),
+          fmtMoney(dayStanding(day)),
           fmtMoney(costs[i]),
           fmtMoney(rolling[i])
         ];
       })
+    );
+  }
+
+  /* -- blended electricity rate -------------------------------------------- */
+
+  /**
+   * What a kWh of electricity actually cost. Two lines on one p/kWh axis:
+   * the unit rate paid, and the same rate once the daily standing charge is
+   * spread over the kWh used. The gap between them is the standing charge —
+   * it widens on light-usage days, which is the point of the chart.
+   */
+  function renderBlendedRate(rows) {
+    var card = root.querySelector("[data-card='blended-rate']");
+    var host = card.querySelector("[data-plot]");
+    var allInColour = cssVar("--elec");
+    var unitColour = cssVar("--gas");
+
+    var usable = rows.filter(function (day) { return day.ek > 0; });
+    var caption = card.querySelector("[data-caption]");
+
+    if (usable.length < 2) {
+      host.innerHTML = '<p class="energy-empty">Not enough electricity readings in this range.</p>';
+      if (caption) caption.textContent = "";
+      return;
+    }
+
+    var allIn = rows.map(blendedAllIn);
+    var unit = rows.map(blendedUnit);
+    var present = allIn.concat(unit).filter(function (value) { return value !== null; });
+
+    // On a wide plot the end labels live in the right margin; on a narrow one
+    // that margin would eat the chart, so they sit inside instead.
+    var narrow = (host.getBoundingClientRect().width || 640) < 560;
+
+    var f = frame(host, {
+      height: 300,
+      margin: { top: 26, right: narrow ? 16 : 92, bottom: 34, left: 54 },
+      label: "Blended electricity rate in pence per kilowatt hour"
+    });
+
+    var lo = Math.min.apply(null, present);
+    var hi = Math.max.apply(null, present);
+    var padding = (hi - lo || hi * 0.1 || 1) * 0.15;
+    var axis = yAxisRange(f, Math.max(0, lo - padding), hi + padding, function (value) {
+      return value.toFixed(value % 1 === 0 ? 0 : 1) + "p";
+    });
+
+    var step = f.plotW / rows.length;
+    var x = function (index) { return f.left + index * step + step / 2; };
+    var y = function (value) {
+      return f.top + f.plotH - ((value - axis.lo) / axis.span) * f.plotH;
+    };
+
+    /** Path across the range, lifting the pen over days with no readings. */
+    var pathFor = function (values) {
+      var d = "";
+      var pen = false;
+      values.forEach(function (value, index) {
+        if (value === null) { pen = false; return; }
+        d += (pen ? "L" : "M") + x(index).toFixed(1) + "," + y(value).toFixed(1);
+        pen = true;
+      });
+      return d;
+    };
+
+    // Shade the standing-charge premium between the two lines.
+    var band = "";
+    var forward = [];
+    var back = [];
+    rows.forEach(function (day, index) {
+      if (allIn[index] === null || unit[index] === null) return;
+      forward.push(x(index).toFixed(1) + "," + y(allIn[index]).toFixed(1));
+      back.unshift(x(index).toFixed(1) + "," + y(unit[index]).toFixed(1));
+    });
+    if (forward.length > 1) {
+      band = "M" + forward.join("L") + "L" + back.join("L") + "Z";
+      f.svg.appendChild(el("path", { d: band, fill: allInColour, opacity: 0.14 }));
+    }
+
+    var series = [
+      { values: unit, colour: unitColour, name: "Unit rate" },
+      { values: allIn, colour: allInColour, name: "All-in" }
+    ];
+
+    series.forEach(function (line) {
+      f.svg.appendChild(el("path", {
+        d: pathFor(line.values),
+        fill: "none",
+        stroke: line.colour,
+        "stroke-width": 2,
+        "stroke-linejoin": "round",
+        "stroke-linecap": "round"
+      }));
+
+      line.last = -1;
+      line.values.forEach(function (value, index) {
+        if (value !== null) line.last = index;
+      });
+    });
+
+    // Direct-label both lines in the right margin, level with their last
+    // point — clear of the marks, and nudged apart if the two ends converge.
+    var labelled = series.filter(function (line) { return line.last >= 0; });
+    var ys = labelled.map(function (line) { return y(line.values[line.last]); });
+
+    if (ys.length === 2 && Math.abs(ys[0] - ys[1]) < 16) {
+      var mid = (ys[0] + ys[1]) / 2;
+      ys[0] = ys[0] <= ys[1] ? mid - 9 : mid + 9;
+      ys[1] = ys[0] === mid - 9 ? mid + 9 : mid - 9;
+    }
+
+    labelled.forEach(function (line, index) {
+      var px = x(line.last);
+      var py = y(line.values[line.last]);
+
+      f.svg.appendChild(el("circle", {
+        cx: px, cy: py, r: 4,
+        fill: line.colour, stroke: cssVar("--surface-1"), "stroke-width": 2
+      }));
+      f.svg.appendChild(el("text", {
+        x: narrow ? px - 10 : Math.min(px + 10, f.left + f.plotW + 10),
+        y: narrow
+          ? (line.name === "All-in"
+            ? Math.max(f.top + 12, py - 14)
+            : Math.min(f.top + f.plotH - 4, py + 22))
+          : Math.max(f.top + 8, Math.min(f.top + f.plotH, ys[index] + 4)),
+        "text-anchor": narrow ? "end" : "start",
+        class: "energy-direct-label"
+      }, line.name + " " + fmtPence(line.values[line.last])));
+    });
+
+    var crosshair = el("line", { y1: f.top, y2: f.top + f.plotH, class: "energy-crosshair", opacity: 0 });
+    f.svg.appendChild(crosshair);
+
+    rows.forEach(function (day, index) {
+      var hit = el("rect", {
+        x: f.left + index * step, y: f.top, width: step, height: f.plotH, class: "energy-hit"
+      });
+      hit.addEventListener("pointermove", function (event) {
+        crosshair.setAttribute("x1", x(index));
+        crosshair.setAttribute("x2", x(index));
+        crosshair.setAttribute("opacity", 1);
+
+        showTooltip(
+          tooltipRows(fmtDate(day.date), [
+            { label: "All-in", value: allIn[index] === null ? "—" : fmtPence(allIn[index]), color: allInColour },
+            { label: "Unit rate", value: unit[index] === null ? "—" : fmtPence(unit[index]), color: unitColour },
+            { label: "Used", value: fmtKwh(day.ek) },
+            { label: "Standing charge", value: fmtMoney(day.esc) }
+          ]),
+          event
+        );
+      });
+      hit.addEventListener("pointerleave", function () {
+        crosshair.setAttribute("opacity", 0);
+        hideTooltip();
+      });
+      f.svg.appendChild(hit);
+    });
+
+    dateTicks(f, rows, step, f.top + f.plotH + 20);
+    f.svg.appendChild(el("text", { x: 0, y: 12, class: "energy-axis-label" }, "p/kWh"));
+
+    if (caption) {
+      var range = totals(rows);
+      var premium = range.blended - range.blendedUnit;
+      caption.textContent =
+        fmtPence(range.blended) + " all-in over the range — " +
+        fmtPence(premium) + " of that is the standing charge";
+    }
+
+    tableView(
+      card,
+      ["Day", "Used", "Unit cost", "Standing", "Unit rate", "All-in"],
+      rows
+        .map(function (day, index) {
+          return [
+            fmtDate(day.date, true),
+            fmtKwh(day.ek),
+            fmtMoney(day.ec),
+            fmtMoney(day.esc),
+            unit[index] === null ? "—" : fmtPence(unit[index]),
+            allIn[index] === null ? "—" : fmtPence(allIn[index])
+          ];
+        })
+        .reverse()
     );
   }
 
@@ -855,7 +1157,7 @@
       var bucket = sums[isoDow(day.date)];
       bucket.ek += day.ek;
       bucket.gk += day.gk;
-      bucket.cost += day.ec + day.gc + day.sc;
+      bucket.cost += dayCost(day);
       bucket.n += 1;
     });
 
@@ -954,9 +1256,10 @@
     var rows = slice(state.days);
     if (!rows.length) return;
 
-    renderTiles(rows);
+    renderSummary(rows);
     renderDailyEnergy(rows);
     renderDailyCost(rows);
+    renderBlendedRate(rows);
     renderDayShape(rows);
     renderHeatmap(rows);
     renderDayOfWeek(rows);
