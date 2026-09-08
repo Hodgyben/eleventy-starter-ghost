@@ -65,7 +65,6 @@ typings/
 
 # Eleventy Custom
 .cache/
-yarn-error.log
 .netlify/
 dist
 

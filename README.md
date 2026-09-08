@@ -14,10 +14,17 @@ git clone https://github.com/TryGhost/eleventy-starter-ghost.git
 cd eleventy-starter-ghost
 ```
 
+This project uses [pnpm](https://pnpm.io). If you don't have it, Node ships
+Corepack, which will fetch the pinned version for you:
+
+```bash
+corepack enable
+```
+
 Then install dependencies
 
 ```bash
-yarn
+pnpm install
 ```
 
 # Running
@@ -25,7 +32,7 @@ yarn
 Start the development server
 
 ```bash
-yarn start
+pnpm start
 ```
 
 You now have a completely static site pulling content from Ghost running as a headless CMS.
@@ -54,7 +61,7 @@ You can disable the default Ghost Handlebars Theme front-end by enabling the `Ma
 
 ```bash
 # Build the site locally
-yarn build
+pnpm build
 ```
 
 # Octopus Energy dashboard
@@ -76,11 +83,11 @@ in the browser and your API key never reaches the client.
 3. Check the credentials work:
 
    ```bash
-   yarn octopus:refresh
+   pnpm octopus:refresh
    ```
 
    That forces a fresh pull into `.cache/octopus.json` and prints a summary.
-4. Build or serve as normal — `yarn dev` / `yarn build`.
+4. Build or serve as normal — `pnpm dev` / `pnpm build`.
 
 For a deployed build, set the same variables as build environment variables on
 your host rather than committing them.

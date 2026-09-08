@@ -3,7 +3,7 @@
  * Force a fresh pull from the Octopus API into the local cache, then print
  * a short summary. Handy for checking credentials before a build:
  *
- *   yarn octopus:refresh
+ *   pnpm octopus:refresh
  */
 
 require("dotenv").config({ path: ".env.local" });
