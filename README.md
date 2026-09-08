@@ -64,6 +64,8 @@ The site includes an energy dashboard at `/energy/`, built from the
 Consumption and tariff data are pulled **at build time**, so nothing is fetched
 in the browser and your API key never reaches the client.
 
+**Requires Node 18 or newer** — the API client uses the global `fetch`.
+
 ## Setup
 
 1. Grab your API key from

@@ -26,6 +26,9 @@
   ],
   "author": "David Darnes",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "bugs": {
     "url": "https://github.com/TryGhost/eleventy-starter-ghost/issues"
   },
