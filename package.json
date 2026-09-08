@@ -4,11 +4,12 @@
   "description": "A starter template to build websites with Ghost & Eleventy",
   "main": ".eleventy.js",
   "scripts": {
-    "start": "yarn run dev",
+    "start": "pnpm dev",
     "dev": "cross-env ELEVENTY_ENV=dev eleventy --serve",
     "build": "cross-env ELEVENTY_ENV=prod eleventy",
-    "test": "yarn run build",
-    "lint": "eslint . --ext .js --cache"
+    "test": "pnpm build",
+    "lint": "eslint . --ext .js --cache",
+    "octopus:refresh": "node scripts/refresh-octopus.js"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,10 @@
   ],
   "author": "David Darnes",
   "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@10.33.0",
   "bugs": {
     "url": "https://github.com/TryGhost/eleventy-starter-ghost/issues"
   },

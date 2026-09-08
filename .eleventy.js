@@ -42,10 +42,16 @@ module.exports = function(config) {
     verbose: false
   });
 
+  // Copy static assets (dashboard script) straight through
+  config.addPassthroughCopy("src/assets");
+
   // Inline CSS
   config.addFilter("cssmin", code => {
     return new cleanCSS({}).minify(code).styles;
   });
+
+  // Embed a data structure in a template as JSON
+  config.addFilter("json", value => JSON.stringify(value));
 
   config.addFilter("getReadingTime", text => {
     const wordsPerMinute = 200;

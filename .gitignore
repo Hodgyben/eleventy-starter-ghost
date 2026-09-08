@@ -65,6 +65,8 @@ typings/
 
 # Eleventy Custom
 .cache/
-yarn-error.log
 .netlify/
 dist
+
+# Local secrets (Octopus API key etc.)
+.env.local
