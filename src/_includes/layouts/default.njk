@@ -48,6 +48,8 @@
         {% set css %}{% include "css/styles.css" %}{% endset %}
         <style>{{ css | cssmin | safe }}</style>
 
+        {% block extra_head %}{% endblock extra_head %}
+
         <script>document.documentElement.classList.remove('no-js');</script>
 
         {{ site.codeinjection_head | safe if site.codeinjection_head }}
@@ -71,6 +73,8 @@
             <div class="viewport-bottom">
                 {% include "partials/footer.njk" %}
             </div>
+
+            {% block extra_scripts %}{% endblock extra_scripts %}
 
             {{ site.codeinjection_foot | safe if site.codeinjection_foot }}
             {{ codeinjection_foot | safe if codeinjection_foot }}

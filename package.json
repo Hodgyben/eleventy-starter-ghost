@@ -8,7 +8,8 @@
     "dev": "cross-env ELEVENTY_ENV=dev eleventy --serve",
     "build": "cross-env ELEVENTY_ENV=prod eleventy",
     "test": "yarn run build",
-    "lint": "eslint . --ext .js --cache"
+    "lint": "eslint . --ext .js --cache",
+    "octopus:refresh": "node scripts/refresh-octopus.js"
   },
   "repository": {
     "type": "git",

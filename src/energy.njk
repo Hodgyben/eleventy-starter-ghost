@@ -1,0 +1,198 @@
+---
+permalink: /energy/index.html
+eleventyExcludeFromCollections: true
+---
+
+{% extends 'layouts/default.njk' %}
+
+{% set title = "Energy dashboard" %}
+
+{% block extra_head %}
+    {% set energyCss %}{% include "css/energy.css" %}{% endset %}
+    <style>{{ energyCss | cssmin | safe }}</style>
+{% endblock extra_head %}
+
+{% block content %}
+<div class="energy" data-energy>
+
+    <header class="energy-header">
+        <div>
+            <h1>Energy dashboard</h1>
+            <p class="energy-subtitle">
+                Half-hourly electricity and gas from Octopus Energy, costed at the tariff in force
+                for each reading. <span data-range-summary></span>
+            </p>
+        </div>
+        <div class="energy-meta">
+            <span class="energy-chip">
+                <span class="energy-chip-dot{% if energy.meta.source == 'demo' %} is-demo{% endif %}"></span>
+                {% if energy.meta.source == 'demo' %}Demo data{% elif energy.meta.source == 'cache' %}Cached data{% else %}Live data{% endif %}
+            </span>
+            <span class="energy-chip">Updated {{ energy.meta.fetchedAt | htmlDateString }}</span>
+            <span class="energy-chip">{{ energy.days | length }} days of readings</span>
+        </div>
+    </header>
+
+    {% if energy.meta.warnings | length %}
+        <div class="energy-notice">
+            <div>
+                <strong>Heads up</strong>
+                <ul>
+                    {% for warning in energy.meta.warnings %}
+                        <li>{{ warning }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="energy-filters" role="group" aria-label="Date range">
+        <span class="energy-filters-label" id="energy-range-label">Range</span>
+        <div class="energy-segmented" aria-labelledby="energy-range-label">
+            <button type="button" data-range="7" aria-pressed="false">7 days</button>
+            <button type="button" data-range="30" aria-pressed="true">30 days</button>
+            <button type="button" data-range="90" aria-pressed="false">90 days</button>
+        </div>
+    </div>
+
+    <div class="energy-tiles" data-tiles></div>
+
+    <div class="energy-grid">
+
+        <section class="energy-card is-wide" data-card="daily-energy">
+            <div class="energy-card-head">
+                <h2>Daily energy use</h2>
+            </div>
+            <p class="energy-card-note">Electricity and gas stacked on one kilowatt-hour scale, so the bar height is the whole day.</p>
+            <ul class="energy-legend">
+                <li><span class="energy-swatch is-elec"></span> Electricity</li>
+                <li><span class="energy-swatch is-gas"></span> Gas</li>
+            </ul>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card is-wide" data-card="daily-cost">
+            <div class="energy-card-head">
+                <h2>What it cost</h2>
+            </div>
+            <p class="energy-card-note">Unit costs plus standing charges for both meters, with a seven-day rolling average.</p>
+            <ul class="energy-legend">
+                <li><span class="energy-swatch is-elec"></span> Daily cost</li>
+                <li><span class="energy-swatch is-gas"></span> 7-day average</li>
+            </ul>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card" data-card="day-shape">
+            <div class="energy-card-head">
+                <h2>Your average day</h2>
+            </div>
+            <p class="energy-card-note">Mean electricity per half hour, split by weekday and weekend.</p>
+            <ul class="energy-legend">
+                <li><span class="energy-swatch is-elec"></span> Weekday</li>
+                <li><span class="energy-swatch is-gas"></span> Weekend</li>
+            </ul>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card" data-card="day-of-week">
+            <div class="energy-card-head">
+                <h2>By day of the week</h2>
+                <span class="energy-card-caption" data-caption></span>
+            </div>
+            <p class="energy-card-note">Average use for each weekday across the selected range.</p>
+            <ul class="energy-legend">
+                <li><span class="energy-swatch is-elec"></span> Electricity</li>
+                <li><span class="energy-swatch is-gas"></span> Gas</li>
+            </ul>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card is-wide" data-card="heatmap">
+            <div class="energy-card-head">
+                <h2>Every half hour</h2>
+            </div>
+            <p class="energy-card-note">One row per day, one cell per half hour — the darker the cell, the more electricity was drawn.</p>
+            <div class="energy-scale" data-scale></div>
+            <div class="energy-plot" data-plot></div>
+            <button type="button" class="energy-toggle" data-table-toggle aria-expanded="false">Show table</button>
+            <div class="energy-table-wrap" data-table hidden></div>
+        </section>
+
+        <section class="energy-card is-wide">
+            <div class="energy-card-head">
+                <h2>How these numbers are worked out</h2>
+            </div>
+            <dl class="energy-facts">
+                <div>
+                    <dt>Electricity tariff</dt>
+                    <dd>{{ energy.meta.electricity.tariffCode or "not resolved" }}</dd>
+                </div>
+                <div>
+                    <dt>Electricity unit rate</dt>
+                    <dd>
+                        {% if energy.meta.electricity.unitRate %}
+                            {% if energy.meta.electricity.halfHourly %}
+                                {{ energy.meta.electricity.unitRate.min }}–{{ energy.meta.electricity.unitRate.max }}p/kWh
+                            {% else %}
+                                {{ energy.meta.electricity.unitRate.max }}p/kWh
+                            {% endif %}
+                        {% else %}—{% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Electricity standing charge</dt>
+                    <dd>{{ energy.meta.electricity.standingCharge }}p/day</dd>
+                </div>
+                <div>
+                    <dt>Gas tariff</dt>
+                    <dd>{{ energy.meta.gas.tariffCode or "not resolved" }}</dd>
+                </div>
+                <div>
+                    <dt>Gas unit rate</dt>
+                    <dd>{% if energy.meta.gas.unitRate %}{{ energy.meta.gas.unitRate.max }}p/kWh{% else %}—{% endif %}</dd>
+                </div>
+                <div>
+                    <dt>Gas standing charge</dt>
+                    <dd>{{ energy.meta.gas.standingCharge }}p/day</dd>
+                </div>
+                <div>
+                    <dt>Gas conversion</dt>
+                    <dd>
+                        {% if energy.meta.gas.units == "m3" %}
+                            m³ × {{ energy.meta.gas.volumeCorrection }} × {{ energy.meta.gas.calorificValue }} ÷ 3.6
+                        {% else %}
+                            meter reports kWh directly
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Time zone</dt>
+                    <dd>{{ energy.meta.timezone }}</dd>
+                </div>
+            </dl>
+            <p class="energy-card-note" style="margin-top:1.6rem;margin-bottom:0">
+                Costs are estimates. Each half-hourly reading is priced at the unit rate in force at that
+                moment (so half-hourly tariffs such as Agile are handled properly), standing charges are
+                added per day, and VAT-inclusive rates are used throughout. Partial days at either end of
+                the window are dropped. Your real bill may differ.
+            </p>
+        </section>
+
+    </div>
+
+    <script type="application/json" id="energy-data">{{ energy | json | safe }}</script>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+    <script src="/assets/js/energy.js" defer></script>
+{% endblock extra_scripts %}

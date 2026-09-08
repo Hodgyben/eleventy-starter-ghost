@@ -57,6 +57,55 @@ You can disable the default Ghost Handlebars Theme front-end by enabling the `Ma
 yarn build
 ```
 
+# Octopus Energy dashboard
+
+The site includes an energy dashboard at `/energy/`, built from the
+[Octopus Energy API](https://developer.octopus.energy/rest/guides/api-basics).
+Consumption and tariff data are pulled **at build time**, so nothing is fetched
+in the browser and your API key never reaches the client.
+
+## Setup
+
+1. Grab your API key from
+   [octopus.energy → API access](https://octopus.energy/dashboard/new/accounts/personal-details/api-access).
+   Treat it as a password — it can read your whole account.
+2. Copy `.env.example` to `.env.local` (git-ignored) and fill in the key, your
+   account number, and the meter identifiers.
+3. Check the credentials work:
+
+   ```bash
+   yarn octopus:refresh
+   ```
+
+   That forces a fresh pull into `.cache/octopus.json` and prints a summary.
+4. Build or serve as normal — `yarn dev` / `yarn build`.
+
+For a deployed build, set the same variables as build environment variables on
+your host rather than committing them.
+
+## What it shows
+
+Half-hourly electricity and gas over the last 7, 30, or 90 days: daily use and
+cost, the average shape of a day split weekday/weekend, use by day of the week,
+and a half-hour heatmap. Every chart has a table view behind a toggle.
+
+Each reading is costed at the unit rate in force at that instant, so half-hourly
+tariffs such as Agile are priced correctly rather than averaged; standing charges
+are added per day.
+
+## Notes
+
+- **Tariffs.** Set `OCTOPUS_ACCOUNT_NUMBER` and the dashboard reads your real
+  tariff codes from the account. Without it, set
+  `OCTOPUS_ELECTRICITY_TARIFF_CODE` / `OCTOPUS_GAS_TARIFF_CODE` explicitly, or
+  costs fall back to the flat rates in `.env.example`.
+- **Gas units.** SMETS2 meters report cubic metres, SMETS1 meters report kWh.
+  The default assumes m³ and converts with
+  `m³ × 1.02264 × 39.5 ÷ 3.6`. Set `OCTOPUS_GAS_UNITS=kwh` if your readings come
+  through in kWh already. The conversion in use is shown on the page.
+- **Graceful degradation.** The build never fails on the API: it falls back to
+  the cache, then to clearly-labelled demo data, and explains which on the page.
+
 # Copyright & License
 
 Copyright (c) 2013-2022 Ghost Foundation - Released under the [MIT license](LICENSE).
